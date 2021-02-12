@@ -1,0 +1,206 @@
+#!/bin/bash
+
+
+version=0.1-06
+
+
+
+
+target=$1
+echo "aformat 
+Version:$version
+"
+
+# tmp 파일 존재 확인
+
+if [[ -s /tmp/aformat_mnt_info ]]; then
+	rm /tmp/aformat_mnt_info
+fi
+
+# 필요 프로그램 존재 확인 
+
+Nprogram=""
+
+if [[ ! -s /usr/sbin/e4defrag ]]; then
+	Nprogram="$Nprogram'e4defrag' "
+fi
+
+
+if [[ ! -s /usr/sbin/e2fsck ]]; then
+	Nprogram="$Nprogram 'e2fsck' "
+fi
+
+
+if [[ ! -s /usr/bin/dd ]]; then
+	Nprogram="$Nprogram 'dd' "
+fi
+
+if [[ -n "$Nprogram" ]]; then
+	echo "$Nprogram is nothing this system... to exit."
+	exit 0
+fi
+
+
+if [[ "$USER" != "root" ]]; then
+	echo "usage : sudo ./aformat <disk>
+example : sudo ./aformat /dev/sdx
+
+This program usage need running by root."
+	exit 0
+fi
+
+if [[ ! "$1" ]]; then
+	echo "usage : sudo ./aformat <disk>
+example : sudo ./aformat /dev/sdx
+
+you need input parameter '/dev/<disk>'"
+	exit 0
+	
+fi
+
+
+if [[ ! -r $1 ]]; then
+	echo "usage : sudo ./aformat <disk>
+example : sudo ./aformat /dev/sdx
+
+This program usage need running by root.
+"
+	echo "'$1' disk not found!"
+	exit 0
+fi
+
+if [[ -r $1 ]]; then
+	disk=`echo $1 |sed -e 's%/dev/%%g'`
+	echo " "
+	
+fi
+
+
+# 타겟 드라이버의 마운트 확인
+
+mount_chk=`cat /proc/mounts |grep "$1"`
+
+if [[ -n "$mount_chk" ]]; then
+	echo "-Disk information-"
+
+	ls /dev/ |grep $disk > /tmp/aformat_partitions
+
+	par_lines=`cat /tmp/aformat_partitions |wc -l`
+
+	sudo fdisk -l $target |grep $1 > /tmp/aformat_fdisk
+
+	cat /tmp/aformat_fdisk |tail -$par_lines
+
+	echo $mount_chk
+	echo "
+Disk '$disk' have mount points... "
+	read -p "Do you want force unmount for Disk $1 format? [y/n] :" force_unmount
+
+	if [[ $force_unmount != "Y" ]] && [[ $force_unmount != "y" ]]; then
+		exit 0
+	else
+	
+		cat /proc/mounts |grep "$1" > /tmp/aformat_mnt_info
+		
+		mnt_line=`wc -l /tmp/aformat_mnt_info |awk '{print $1}'`
+		
+		for (( i = 1; i <= $mnt_line; i++ )); do
+			mnt_point=`sed -n "$i p" /tmp/aformat_mnt_info |awk '{print $2}'`
+			disk_name=`sed -n "$i p" /tmp/aformat_mnt_info |awk '{print $1}'`
+			sudo fuser -ck $mnt_point
+			sudo umount $disk_name
+		done
+		
+	
+	fi
+
+fi
+
+
+
+echo "-Disk information-"
+
+ls /dev/ |grep $disk > /tmp/aformat_partitions
+
+par_lines=`cat /tmp/aformat_partitions |wc -l`
+
+sudo fdisk -l $target |grep $1 > /tmp/aformat_fdisk
+
+cat /tmp/aformat_fdisk |tail -$par_lines
+
+byte=`cat /tmp/aformat_fdisk |awk '{print $5}' |head -1`
+
+
+
+
+
+
+echo "
+Do you really start advenced format your disk '$1'?" 
+read -p "(Your Disk '$disk' all data has been broken!!!) [y/n] :" start
+
+case $start in
+n|N)
+	exit 0
+	;;
+
+esac
+
+
+if [[ $start != "Y" ]] && [[ $start != "y" ]]; then
+	exit 0
+fi
+
+# 프로세스 개수 확인
+
+cpu_count=`grep -c processor /proc/cpuinfo`
+cpu_count=`echo "$cpu_count -1"|bc`
+
+
+# 포맷 프로세싱을 위한 카운트 재계산
+
+counts=`echo "$byte*0.02/4096/$cpu_count" |bc`
+
+
+# DELETE DISK
+
+dd if=/dev/zero of=$1 bs=1M count=2 > /dev/null 2>&1
+
+
+# 디스크 크기에 따른 무작위 urandom format
+
+sleep 2
+
+for (( i = 0; i < $cpu_count; i++ )); do
+	dd if=/dev/urandom of=$1 bs=4096 count=$counts > /dev/null 2>&1 &
+done
+
+
+dd if=/dev/urandom of=$1 bs=4096 count=$counts > /dev/null 2>&1
+
+sleep 2
+
+sudo mkfs.ext4 $1 > /dev/null 2>&1
+
+
+
+
+# file system check
+
+sleep 2 
+
+
+sudo e2fsck -yf $1 > /dev/null 2>&1
+
+# disk delete
+
+sleep 2
+
+
+dd if=/dev/zero of=$1 bs=1M count=2 > /dev/null 2>&1
+
+
+echo "aformat is done."
+
+
+exit 0
