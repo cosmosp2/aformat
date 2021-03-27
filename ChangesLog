@@ -43,5 +43,9 @@ Sat, 12 Sep 2020 17:36:51 +0900 (0.1-6)
 	
 Sat, 13 Feb 2021 05:14:43 +0900
 
-	1. 프로그램 이름 재정의 (aformat → aformat)
+	1. 프로그램 이름 재정의 (aformater → aformat)
 
+
+업데이트 
+
+	1. /dev/zero > /dev/sdx 

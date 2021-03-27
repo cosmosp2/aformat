@@ -131,10 +131,6 @@ cat /tmp/aformat_fdisk |tail -$par_lines
 byte=`cat /tmp/aformat_fdisk |awk '{print $5}' |head -1`
 
 
-
-
-
-
 echo "
 Do you really start advenced format your disk '$1'?" 
 read -p "(Your Disk '$disk' all data has been broken!!!) [y/n] :" start
